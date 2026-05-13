@@ -68,33 +68,47 @@
 
             <p class="text-slate-400 text-sm mt-8">Thông tin xác nhận đã được lưu lại. Bạn có thể tra cứu nhanh trạng
                 thái đơn hàng chỉ với Số điện thoại.</p>
+
+            <!-- Confirmation Notification (Simulation) -->
+            <div id="confirmationNotification" class="mt-8 p-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl">
+                <div class="flex items-start gap-4">
+                    <div class="shrink-0 w-10 h-10 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                        <i class="codicon codicon-mail text-green-600 dark:text-green-400 text-lg"></i>
+                    </div>
+                    <div class="text-left">
+                        <p class="font-black text-green-700 dark:text-green-400 text-sm uppercase tracking-wide">Đơn hàng đã được ghi nhận</p>
+                        <p class="text-green-600 dark:text-green-500 text-sm mt-1">Mã đơn hàng: <span id="confirmOrderId" class="font-black">#---</span></p>
+                        <p id="confirmEmailMsg" class="text-green-600 dark:text-green-500 text-sm mt-1">Thông tin xác nhận đã được gửi đến email của bạn.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div
             class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
             <div class="p-8 md:p-12 space-y-10">
-                <!-- Status Timeline -->
-                <div class="flex justify-between items-center relative">
+                <!-- Status Timeline - Responsive -->
+                <div class="timeline-steps flex justify-between items-center relative overflow-x-auto py-4">
                     <div
                         class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-100 dark:bg-slate-800 -z-10">
                     </div>
-                    <div class="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2 shrink-0">
-                        <div class="size-6 rounded-full bg-primary flex items-center justify-center">
-                            <div class="size-2 bg-white rounded-full"></div>
+                    <div class="timeline-step flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-1 md:px-2 shrink-0">
+                        <div class="step-circle size-5 md:size-6 rounded-full bg-primary flex items-center justify-center">
+                            <div class="size-1.5 md:size-2 bg-white rounded-full"></div>
                         </div>
-                        <span class="text-[10px] font-black uppercase text-primary">Chờ xác nhận</span>
+                        <span class="step-label text-[8px] md:text-[10px] font-black uppercase text-primary">Chờ xác nhận</span>
                     </div>
-                    <div class="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2 shrink-0">
-                        <div class="size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-                        <span class="text-[10px] font-black uppercase text-slate-400">Đang xử lý</span>
+                    <div class="timeline-step flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-1 md:px-2 shrink-0">
+                        <div class="step-circle size-5 md:size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+                        <span class="step-label text-[8px] md:text-[10px] font-black uppercase text-slate-400">Đang xử lý</span>
                     </div>
-                    <div class="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2 shrink-0">
-                        <div class="size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-                        <span class="text-[10px] font-black uppercase text-slate-400">Đang giao</span>
+                    <div class="timeline-step flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-1 md:px-2 shrink-0">
+                        <div class="step-circle size-5 md:size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+                        <span class="step-label text-[8px] md:text-[10px] font-black uppercase text-slate-400">Đang giao</span>
                     </div>
-                    <div class="flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-2 shrink-0">
-                        <div class="size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
-                        <span class="text-[10px] font-black uppercase text-slate-400">Hoàn tất</span>
+                    <div class="timeline-step flex flex-col items-center gap-2 bg-white dark:bg-slate-900 px-1 md:px-2 shrink-0">
+                        <div class="step-circle size-5 md:size-6 rounded-full bg-slate-200 dark:bg-slate-800"></div>
+                        <span class="step-label text-[8px] md:text-[10px] font-black uppercase text-slate-400">Hoàn tất</span>
                     </div>
                 </div>
 
@@ -156,6 +170,11 @@
                 <i class="codicon codicon-sync"></i>
                 THEO DÕI ĐƠN HÀNG
             </a>
+            <button id="refreshStatusBtn" onclick="refreshOrderStatus()"
+                class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-black py-5 rounded-2xl text-center hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                <i class="codicon codicon-sync"></i>
+                LÀM MỚI TRẠNG THÁI
+            </button>
             <a href="index.html"
                 class="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-black py-5 rounded-2xl text-center hover:bg-slate-50 transition-colors">
                 TIẾP TỤC MUA SẮM
@@ -163,34 +182,135 @@
         </div>
     </main>
 
+    <script src="js/api.js"></script>
+    <script src="js/order-utils.js"></script>
+    <script src="js/notify.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const lastOrder = JSON.parse(sessionStorage.getItem('safeall_last_order'));
+        // Sử dụng SAFEALL_ORDER utilities
+        const O = window.SAFEALL_ORDER;
+
+        let currentOrderData = null;
+        let refreshInterval = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Validate và lấy lastOrder
+            const lastOrder = O.getLastOrder();
             if (!lastOrder) {
-                window.location.href = 'index.html';
+                showFallbackUI('Chưa có thông tin đơn hàng', 'Vui lòng đặt hàng trước hoặc kiểm tra lại.');
                 return;
             }
 
-            document.getElementById('displayOrderId').innerText = '#' + lastOrder.orderId;
-            document.getElementById('trackOrderBtn').href = 'my-orders.html?phone=' + lastOrder.customer.phone;
+            // Validate order data
+            const validation = O.validateOrder(lastOrder);
+            if (!validation.valid) {
+                console.warn('[OrderSuccess] Order validation warnings:', validation.errors);
+            }
 
-            document.getElementById('displayCustomerName').innerText = lastOrder.customer.name;
-            document.getElementById('displayCustomerPhone').innerText = lastOrder.customer.phone;
-            document.getElementById('displayCustomerAddress').innerText = lastOrder.customer.address;
-            document.getElementById('displayTotal').innerText = lastOrder.total.toLocaleString('vi-VN') + 'đ';
+            currentOrderData = lastOrder;
+            
+            // Display basic info - dùng hàm formatCurrency
+            document.getElementById('displayOrderId').innerText = '#' + (lastOrder.orderId || lastOrder.id || '---');
+            document.getElementById('confirmOrderId').innerText = '#' + (lastOrder.orderId || lastOrder.id || '---');
+            
+            // Show email or phone - dùng hàm get
+            const confirmMsg = document.getElementById('confirmEmailMsg');
+            const customer = lastOrder.customer || {};
+            if (customer.email) {
+                confirmMsg.innerText = `Thông tin xác nhận đã được gửi đến ${customer.email}`;
+            } else if (customer.phone) {
+                confirmMsg.innerText = `Thông tin xác nhận đã được gửi đến SĐT ${customer.phone}`;
+            } else {
+                confirmMsg.innerText = 'Thông tin xác nhận đã được lưu lại.';
+            }
+            
+            // Validate phone trước khi set track URL
+            const trackBtn = document.getElementById('trackOrderBtn');
+            if (customer.phone) {
+                trackBtn.href = 'my-orders.html?phone=' + customer.phone;
+            } else {
+                trackBtn.href = 'my-orders.html';
+            }
 
-            // Access Code copying is no longer needed
+            // Customer info - có fallback
+            document.getElementById('displayCustomerName').innerText = customer.name || '---';
+            document.getElementById('displayCustomerPhone').innerText = customer.phone || '---';
+            document.getElementById('displayCustomerAddress').innerText = customer.address || '---';
+            document.getElementById('displayTotal').innerText = O.formatCurrency(lastOrder.total);
 
+            // Dynamic payment method - dùng getPaymentMethodLabel
+            const paymentEl = document.getElementById('displayPaymentMethod');
+            paymentEl.innerText = O.getPaymentMethodLabel(lastOrder.paymentMethod);
+
+            // Render items - dùng renderItems
             const itemsContainer = document.getElementById('displayItems');
-            itemsContainer.innerHTML = lastOrder.items.map(item => `
-                <div class="flex justify-between items-center group">
-                    <div class="flex items-center gap-4">
-                        <div class="size-12 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center font-black text-primary">${item.qty}x</div>
-                        <span class="font-bold text-slate-700 dark:text-slate-300 group-hover:text-primary transition-colors">${item.title}</span>
-                    </div>
-                    <span class="font-black text-slate-900 dark:text-white">${(item.price * item.qty).toLocaleString('vi-VN')}đ</span>
-                </div>
-            `).join('');
+            itemsContainer.innerHTML = O.renderItems(lastOrder.items);
+
+            // Show order success popup (optional - can be enabled/disabled)
+            // window.SAFEALL_NOTIFY.orderSuccess({
+            //     orderId: lastOrder.orderId,
+            //     customerName: customer.name,
+            //     customerPhone: customer.phone,
+            //     total: lastOrder.total,
+            //     items: lastOrder.items,
+            //     paymentMethod: lastOrder.paymentMethod
+            // });
+
+            // Show toast notification
+            window.SAFEALL_NOTIFY.success(`Đơn hàng #${lastOrder.orderId} đã được ghi nhận!`);
+
+            // Initial status fetch
+            await refreshOrderStatus();
+
+            // Auto-refresh every 30 seconds
+            refreshInterval = setInterval(refreshOrderStatus, 30000);
+
+            // Refresh on tab visibility change
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    refreshOrderStatus();
+                }
+            });
+        });
+
+        async function refreshOrderStatus() {
+            const orderId = currentOrderData?.orderId || currentOrderData?.id || currentOrderData?.shortId;
+            if (!orderId) return;
+
+            const refreshBtn = document.getElementById('refreshStatusBtn');
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="codicon codicon-sync animate-spin"></i> Đang cập nhật...';
+            }
+
+            try {
+                const res = await window.SAFEALL_API.getOrder(orderId);
+                if (res.success && res.order) {
+                    // Dùng hàm renderTimeline từ order-utils
+                    O.updateTimelineFromStatus(res.order.fulfillmentStatus || res.order.status);
+                }
+            } catch (err) {
+                console.error('[OrderSuccess] Refresh status error:', err);
+            } finally {
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="codicon codicon-sync"></i> Làm mới trạng thái';
+                }
+            }
+        }
+
+        // Fallback UI khi không có dữ liệu
+        function showFallbackUI(message, suggestion) {
+            const main = document.querySelector('main');
+            if (main) {
+                main.innerHTML = O.showFallback(message, suggestion);
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
         });
     </script>
 </body>

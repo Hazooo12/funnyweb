@@ -90,6 +90,7 @@ export default async function handler(req, res) {
         if (action === 'status') return await handleStatus(req, res);
         if (action === 'track-quick') return await handleTrackQuick(req, res);
         if (action === 'track-detail') return await handleTrackDetail(req, res);
+        if (action === 'get') return await handleGet(req, res);
 
         return res.status(404).json({ message: 'Order action not found' });
     } catch (error) {
@@ -294,6 +295,72 @@ async function handleTrackDetail(req, res) {
 
     return res.status(200).json({
         success: true,
-        orders: orders // Return all orders for this user since they verified their PIN
+        orders: orders.map(o => ({
+            ...o,
+            customer: {
+                name: o.full_name,
+                phone: o.phone,
+                address: o.address_line
+            }
+        }))
+    });
+}
+
+// ========== GET SINGLE ORDER ==========
+async function handleGet(req, res) {
+    const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const shortId = urlObj.searchParams.get('short_id');
+
+    if (!shortId) {
+        return res.status(400).json({ success: false, message: 'Thiếu mã đơn hàng (short_id).' });
+    }
+
+    const result = await db.query(`
+        SELECT o.*, a.full_name, a.phone, a.address_line, a.email,
+        (SELECT json_agg(i) FROM order_items i WHERE i.order_id = o.id) as items 
+        FROM orders o 
+        LEFT JOIN order_addresses a ON o.id = a.order_id 
+        WHERE o.short_id = $1
+    `, [shortId]);
+
+    if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng.' });
+    }
+
+    const order = result.rows[0];
+    
+    // Normalize items
+    const items = (order.items || []).map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        title: item.title,
+        quantity: item.quantity,
+        unitPrice: parseFloat(item.unit_price || 0),
+        totalPrice: parseFloat(item.total_price || 0)
+    }));
+
+    return res.status(200).json({
+        success: true,
+        order: {
+            id: order.short_id,
+            shortId: order.short_id,
+            status: order.fulfillment_status,
+            fulfillmentStatus: order.fulfillment_status,
+            paymentStatus: order.payment_status,
+            paymentMethod: order.payment_method,
+            subtotal: parseFloat(order.subtotal || 0),
+            shippingFee: parseFloat(order.shipping_fee || 0),
+            total: parseFloat(order.total || 0),
+            createdAt: order.created_at,
+            updatedAt: order.updated_at,
+            carrierTrackingCode: order.carrier_tracking_code,
+            customer: {
+                name: order.full_name,
+                phone: order.phone,
+                address: order.address_line,
+                email: order.email
+            },
+            items: items
+        }
     });
 }

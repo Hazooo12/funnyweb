@@ -139,18 +139,17 @@
     </footer>
 
     <script src="js/api.js"></script>
+    <script src="js/order-utils.js"></script>
+    <script src="js/notify.js"></script>
     <script>
+        // Sử dụng SAFEALL_ORDER utilities
+        const O = window.SAFEALL_ORDER;
         let currentTier = 'quick';
 
-        const STATUS_MAP = {
-            'pending': { label: 'Chờ thanh toán', bg: 'bg-amber-100', text: 'text-amber-700', icon: 'credit-card' },
-            'paid': { label: 'Đã thanh toán', bg: 'bg-green-100', text: 'text-green-700', icon: 'check' },
-            'unfulfilled': { label: 'Chờ xử lý', bg: 'bg-slate-100', text: 'text-slate-600', icon: 'clock' },
-            'processing': { label: 'Đang chuẩn bị', bg: 'bg-blue-100', text: 'text-blue-700', icon: 'package' },
-            'shipped': { label: 'Đang vận chuyển', bg: 'bg-purple-100', text: 'text-purple-700', icon: 'rocket' },
-            'delivered': { label: 'Đã giao hàng', bg: 'bg-emerald-100', text: 'text-emerald-700', icon: 'pass-filled' }
-        };
+        // Alias cho tương thích ngược
+        const STATUS_MAP = O.STATUS_CONFIG;
 
+        // ========== TAB SWITCHING ==========
         function switchTab(tier) {
             currentTier = tier;
             const tQ = document.getElementById('tabQuick');
@@ -174,7 +173,10 @@
 
         async function handleQuickSearch() {
             const phone = document.getElementById('quickPhone').value.trim();
-            if (!phone) return alert('Vui lòng nhập số điện thoại');
+            if (!phone) {
+                window.SAFEALL_NOTIFY.warning('Vui lòng nhập số điện thoại');
+                return;
+            }
 
             showLoading(true);
             try {
@@ -182,19 +184,23 @@
                 showLoading(false);
                 if (res.success && res.orders && res.orders.length > 0) {
                     renderQuickResults(res.orders);
+                    window.SAFEALL_NOTIFY.success(`Tìm thấy ${res.orders.length} đơn hàng!`);
                 } else {
                     showEmpty('Không tìm thấy đơn hàng nào liên quan đến số điện thoại này.');
                 }
             } catch (err) {
                 showLoading(false);
-                alert('Lỗi: ' + err.message);
+                window.SAFEALL_NOTIFY.error('Lỗi: ' + err.message);
             }
         }
 
         async function handleDetailSearch() {
             const phone = document.getElementById('detailPhone').value.trim();
             const pin = document.getElementById('detailPin').value.trim();
-            if (!phone || !pin) return alert('Vui lòng nhập đầy đủ Số điện thoại và Mã PIN');
+            if (!phone || !pin) {
+                window.SAFEALL_NOTIFY.warning('Vui lòng nhập đầy đủ Số điện thoại và Mã PIN');
+                return;
+            }
 
             showLoading(true);
             try {
@@ -202,12 +208,13 @@
                 showLoading(false);
                 if (res.success && res.orders && res.orders.length > 0) {
                     renderDetailResults(res.orders);
+                    window.SAFEALL_NOTIFY.success(`Xác thực thành công! Tìm thấy ${res.orders.length} đơn hàng.`);
                 } else {
                     showEmpty('Thông tin tra cứu không chính xác. Vui lòng dùng số điện thoại và mã PIN (6 số) bạn đã tạo khi đặt hàng.');
                 }
             } catch (err) {
                 showLoading(false);
-                alert('Lỗi: ' + err.message);
+                window.SAFEALL_NOTIFY.error('Lỗi: ' + err.message);
             }
         }
 
@@ -241,6 +248,7 @@
             }
         }
 
+        // Render quick results (danh sách đơn hàng)
         function renderQuickResults(orders) {
             const container = document.getElementById('resultsContainer');
             const elEmpty = document.getElementById('emptyState');
@@ -248,27 +256,37 @@
             if (elEmpty) elEmpty.classList.add('hidden');
             if (!container) return;
 
+            // Normalize orders (hỗ trợ cả format cũ và mới)
+            const normalizedOrders = orders.map(o => ({
+                id: o.id || o.shortId || o.short_id,
+                shortId: o.shortId || o.short_id,
+                status: o.status || o.fulfillmentStatus || o.fulfillment_status,
+                paymentStatus: o.paymentStatus || o.payment_status,
+                total: o.total,
+                createdAt: o.createdAt || o.created_at
+            }));
+
             container.classList.remove('hidden');
             container.innerHTML = `
                 <div class="space-y-4">
-                    <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6 px-4">Kết nối thành công: ${orders.length} đơn hàng</h4>
-                    ${orders.map(o => {
-                const s = STATUS_MAP[o.fulfillment_status] || STATUS_MAP['unfulfilled'];
+                    <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6 px-4">Kết nối thành công: ${normalizedOrders.length} đơn hàng</h4>
+                    ${normalizedOrders.map(o => {
+                const s = O.getStatusConfig(o.status);
                 return `
-                            <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-xl transition-all group">
-                                <div class="flex items-center gap-6">
-                                    <div class="size-16 rounded-[1.5rem] ${s.bg} ${s.text} flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <div class="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 hover:shadow-xl transition-all group">
+                                <div class="flex items-center gap-4 md:gap-6">
+                                    <div class="size-12 md:size-16 rounded-[1.5rem] ${s.bg} ${s.text} flex items-center justify-center text-xl md:text-2xl group-hover:scale-110 transition-transform">
                                         <i class="codicon codicon-${s.icon}"></i>
                                     </div>
                                     <div>
-                                        <div class="flex items-center gap-3 mb-1">
-                                            <span class="text-xl font-black text-slate-900 dark:text-white uppercase">#${o.short_id}</span>
+                                        <div class="flex items-center gap-2 md:gap-3 mb-1 flex-wrap">
+                                            <span class="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase">#${o.shortId}</span>
                                             <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded ${s.bg} ${s.text}">${s.label}</span>
                                         </div>
-                                        <p class="text-xs font-bold text-slate-400">Ngày đặt: ${new Date(o.created_at).toLocaleDateString('vi-VN')}</p>
+                                        <p class="text-xs font-bold text-slate-400">Ngày đặt: ${O.formatDate(o.createdAt)} • ${O.formatCurrency(o.total)}</p>
                                     </div>
                                 </div>
-                                <button onclick="autoLoginDetail('${o.short_id}')" class="bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-400 font-black px-8 py-4 rounded-[1.2rem] transition-all uppercase text-xs tracking-widest italic">Xem chi tiết <i class="codicon codicon-chevron-right ml-2 text-xs"></i></button>
+                                <button onclick="autoLoginDetail('${o.shortId}')" class="bg-slate-50 dark:bg-slate-800 hover:bg-primary hover:text-white text-slate-400 font-black px-6 md:px-8 py-3 md:py-4 rounded-[1.2rem] transition-all uppercase text-xs tracking-widest italic whitespace-nowrap">Xem chi tiết <i class="codicon codicon-chevron-right ml-1 md:ml-2 text-xs"></i></button>
                             </div>
                         `;
             }).join('')}
@@ -301,9 +319,45 @@
             `;
         }
 
+        // Payment method labels
+        const PAYMENT_METHOD_LABELS = {
+            'cod': 'Thanh toán khi nhận hàng (COD)',
+            'bank_transfer': 'Chuyển khoản ngân hàng',
+            'vnpay': 'Ví VNPay',
+            'momo': 'Ví MoMo',
+            'zalopay': 'Ví ZaloPay'
+        };
+
+        function getPaymentMethodLabel(method) {
+            if (!method) return 'Thanh toán khi nhận hàng (COD)';
+            const m = method.toLowerCase();
+            return PAYMENT_METHOD_LABELS[m] || m.replace('_', ' ').toUpperCase();
+        }
+
+        // Render chi tiết đơn hàng - dùng order-utils
         function renderSingleOrderDetail(order) {
-            const fStatus = STATUS_MAP[order.fulfillment_status] || STATUS_MAP['unfulfilled'];
-            const pStatus = STATUS_MAP[order.payment_status] || STATUS_MAP['pending'];
+            // Normalize order data (hỗ trợ cả format cũ và mới)
+            const normalizedOrder = {
+                id: order.id || order.shortId || order.short_id,
+                shortId: order.shortId || order.short_id,
+                status: order.status || order.fulfillmentStatus || order.fulfillment_status,
+                paymentStatus: order.paymentStatus || order.payment_status,
+                paymentMethod: order.paymentMethod || order.payment_method,
+                subtotal: order.subtotal,
+                shippingFee: order.shippingFee || order.shipping_fee,
+                total: order.total,
+                createdAt: order.createdAt || order.created_at,
+                carrierTrackingCode: order.carrierTrackingCode || order.carrier_tracking_code,
+                customer: order.customer || {
+                    name: order.full_name,
+                    phone: order.phone,
+                    address: order.address_line
+                },
+                items: order.items
+            };
+
+            const fStatus = O.getStatusConfig(normalizedOrder.status);
+            const pStatus = O.getStatusConfig(normalizedOrder.paymentStatus);
 
             return `
                 <div class="bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in fade-in slide-in-from-bottom-10 duration-700">
@@ -311,8 +365,11 @@
                         <!-- Heading -->
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                             <div>
-                                <h2 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Đơn hàng #${order.short_id}</h2>
-                                <p class="text-xs font-bold text-slate-400 mt-1">Ngày đặt: ${new Date(order.created_at).toLocaleDateString('vi-VN')}</p>
+                                <h2 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Đơn hàng #${normalizedOrder.shortId}</h2>
+                                <p class="text-xs font-bold text-slate-400 mt-1">
+                                    <i class="codicon codicon-calendar mr-1"></i>
+                                    ${O.formatDateTime(normalizedOrder.createdAt)}
+                                </p>
                             </div>
                             <div class="flex flex-wrap gap-4">
                                 <div class="px-6 py-3 rounded-2xl ${pStatus.bg} ${pStatus.text} flex items-center gap-3">
@@ -331,17 +388,25 @@
                              <div class="space-y-8">
                                 <div>
                                     <h5 class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Người nhận hàng</h5>
-                                    <p class="text-xl font-black">${order.full_name}</p>
-                                    <p class="text-slate-500 font-bold">${order.phone}</p>
-                                    <p class="text-slate-500 text-sm mt-2 leading-relaxed italic">"${order.address_line}"</p>
+                                    <p class="text-xl font-black">${normalizedOrder.customer?.name || '---'}</p>
+                                    <p class="text-slate-500 font-bold">${normalizedOrder.customer?.phone || '---'}</p>
+                                    <p class="text-slate-500 text-sm mt-2 leading-relaxed italic">"${normalizedOrder.customer?.address || '---'}"</p>
                                 </div>
 
-                                ${order.carrier_tracking_code ? `
+                                <div class="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] space-y-3">
+                                    <h5 class="text-[10px] font-black uppercase tracking-widest text-slate-400">Phương thức thanh toán</h5>
+                                    <div class="flex items-center gap-3">
+                                        <i class="codicon codicon-credit-card text-primary text-lg"></i>
+                                        <span class="font-bold text-slate-700 dark:text-slate-300">${O.getPaymentMethodLabel(normalizedOrder.paymentMethod)}</span>
+                                    </div>
+                                </div>
+
+                                ${normalizedOrder.carrierTrackingCode ? `
                                 <div class="bg-primary/5 border border-primary/10 p-6 rounded-[2rem] space-y-2">
                                     <p class="text-[10px] font-black uppercase tracking-widest text-primary/60">Mã vận đơn (Carrier Tracking)</p>
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xl font-black text-primary tracking-tight">${order.carrier_tracking_code}</span>
-                                        <button onclick="navigator.clipboard.writeText('${order.carrier_tracking_code}'); alert('Đã sao chép!')" class="size-10 rounded-full bg-white text-primary flex items-center justify-center hover:shadow-lg transition-all"><i class="codicon codicon-copy"></i></button>
+                                        <span class="text-xl font-black text-primary tracking-tight">${normalizedOrder.carrierTrackingCode}</span>
+                                        <button onclick="navigator.clipboard.writeText('${normalizedOrder.carrierTrackingCode}'); alert('Đã sao chép!')" class="size-10 rounded-full bg-white text-primary flex items-center justify-center hover:shadow-lg transition-all"><i class="codicon codicon-copy"></i></button>
                                     </div>
                                 </div>
                                 ` : `
@@ -355,19 +420,8 @@
                              <div class="space-y-8">
                                 <h5 class="text-[10px] font-black uppercase tracking-widest text-slate-400">Danh sách vật dụng</h5>
                                 <div class="space-y-3">
-                                    ${order.items ? order.items.map(i => `
-                                        <div class="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl group hover:bg-white dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-100">
-                                            <span class="text-sm font-bold text-slate-700 dark:text-slate-300"><span class="text-primary font-black mr-2">${i.quantity}x</span> ${i.title}</span>
-                                            <span class="font-black text-slate-900 dark:text-white">${parseFloat(i.total_price || 0).toLocaleString('vi-VN')}đ</span>
-                                        </div>
-                                    `).join('') : ''}
-                                    <div class="flex justify-between items-center pt-8 mt-4 border-t border-slate-100 dark:border-slate-800">
-                                        <div class="flex flex-col">
-                                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tổng cộng</span>
-                                            <span class="text-xs font-bold text-slate-500 capitalize underline decoration-primary/30 decoration-2">${order.payment_method}</span>
-                                        </div>
-                                        <span class="text-4xl font-black text-primary tracking-tighter">${parseFloat(order.total || 0).toLocaleString('vi-VN')}đ</span>
-                                    </div>
+                                    ${O.renderItems(normalizedOrder.items)}
+                                    ${O.renderPriceBreakdown(normalizedOrder)}
                                 </div>
                              </div>
                         </div>
@@ -376,9 +430,9 @@
             `;
         }
 
+        // DOMContentLoaded - dùng getPhoneFromQuery
         document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            const phone = params.get('phone');
+            const phone = O.getPhoneFromQuery();
             if (phone) {
                 document.getElementById('quickPhone').value = phone;
                 handleQuickSearch();

@@ -2,13 +2,24 @@
  * js/api.js - Absolute Production Centralized Data Access Layer
  * 
  * SOURCE OF TRUTH: Server-side (JWT + PostgreSQL)
+ * Supports mock mode for development/testing
  */
 
 const API = {
     // AUTHORITATIVE STATE IN-MEMORY
     _session: null,
 
+    // Check if using mock mode
+    _useMock() {
+        return typeof window.SAFEALL_MOCK !== 'undefined' && window.SAFEALL_MOCK.CONFIG.USE_MOCK;
+    },
+
     async _fetch(endpoint, options = {}) {
+        // Use mock if enabled
+        if (this._useMock()) {
+            return this._mockFetch(endpoint, options);
+        }
+
         const url = `/api/${endpoint}`;
         const token = localStorage.getItem('safeall_token');
 
@@ -33,6 +44,33 @@ const API = {
             console.error(`[API FAIL] ${url}:`, e.message);
             throw e;
         }
+    },
+
+    // Mock fetch handler
+    async _mockFetch(endpoint, options = {}) {
+        const method = options.method || 'GET';
+        const body = options.body ? JSON.parse(options.body) : {};
+        
+        // Route to appropriate mock handler
+        if (endpoint === 'orders/create' && method === 'POST') {
+            return window.SAFEALL_MOCK.createOrder(body);
+        }
+        if (endpoint === 'orders/track-quick' && method === 'POST') {
+            return window.SAFEALL_MOCK.trackOrderQuick(body.phone);
+        }
+        if (endpoint === 'orders/track-detail' && method === 'POST') {
+            return window.SAFEALL_MOCK.trackOrderDetail(body.phone, body.pin);
+        }
+        if (endpoint.startsWith('orders/get')) {
+            const shortId = new URLSearchParams(endpoint.split('?')[1]).get('short_id');
+            return window.SAFEALL_MOCK.getOrder(shortId);
+        }
+        if (endpoint === 'orders/status' && method === 'PATCH') {
+            return window.SAFEALL_MOCK.updateOrderStatus(body);
+        }
+        
+        console.warn('[API] Unknown mock endpoint:', endpoint);
+        return { success: false, message: 'Unknown endpoint' };
     },
 
     // --- Session ---
@@ -160,6 +198,15 @@ const API = {
                 body: JSON.stringify({ phone, pin })
             });
             return { success: true, orders: res.orders };
+        } catch (e) {
+            return { success: false, message: e.message };
+        }
+    },
+
+    async getOrder(shortId) {
+        try {
+            const res = await this._fetch('orders/get?short_id=' + encodeURIComponent(shortId));
+            return { success: res.success, order: res.order, message: res.message };
         } catch (e) {
             return { success: false, message: e.message };
         }

@@ -276,8 +276,14 @@ const Checkout = {
                         orderId: res.orderId,
                         total,
                         date: new Date().toISOString(),
-                        customer,
-                        items
+                        customer: {
+                            name: customer.name,
+                            phone: customer.phone,
+                            address: customer.address,
+                            email: customer.email || null
+                        },
+                        items,
+                        paymentMethod
                     }));
                 } catch (e) {
                     console.error('[Checkout] Error saving session order info:', e);
